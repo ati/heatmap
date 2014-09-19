@@ -37,7 +37,7 @@ def load_data
       # puts '+ ' + ts.to_s
       res.push(data_point.merge({spectrum: get_ranges(spectrum[ts])}))
     else
-      puts './tmp/' + ts.to_i.to_s + '.0.png'
+      # puts './tmp/' + ts.to_i.to_s + '.0.png'
     end
   end
   return res
@@ -106,4 +106,4 @@ res = {
   band_width: BAND_WIDTH,
   points: normalize(load_data),
 }
-#puts res.to_json
+puts res.to_json
