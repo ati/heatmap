@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"> 
+    <style type="text/css">
+      html, body, { height: 100%; margin: 0; padding: 0;}
+      #map-canvas {
+        width: 640px;
+        height: 400px;
+        margin: 10px;
+        margin-left: 90px;
+        float: left;
+      }
+      #spectrum {
+        background: url('spectrum-sprite.png') 0 0 no-repeat;
+        width: 806px;
+        height: 64px;
+        clear: both;
+        overflow: hidden;
+      }
+
+      #spectrum-band {
+        position: relative;
+        top: 0px;
+        left: 102px;
+        width: 31px;
+        height: 100%;
+        background-color: green;
+        opacity: 0.3;
+      }
+      #time {
+        float: left;
+        width: 15px;
+        height: 400px;
+        margin-left: 10px;
+      }
+      #time-label {
+        float: left;
+        width: 50px;
+        margin-left: 10px;
+      }
+      #frequency {
+        margin-top: 15px;
+        margin-bottom: 10px;
+        width: 640px;
+        margin-left: 90px;
+      }
+      #legend {
+        width: 640px;
+        margin-left: 90px;
+      }
+    </style>
+    
+
+    <script type="text/javascript" src="js/jquery.min.js"></script>
+    <script type="text/javascript" src="js/jquery.spritely.js"></script>
+    <link rel="stylesheet" href="css/jquery-ui.min.css">
+    <script src="js/jquery-ui.min.js"></script>
+
+    <script type="text/javascript"
+      src="http://maps.googleapis.com/maps/api/js?libraries=visualization&key=AIzaSyARde3l38fdZyf5nwQWc-iPVgtHRb6NlwM"></script>
+    <script type="text/javascript">
+
+      var map;
+      var json_data = [];
+      var heatmap;
+      var marker;
+      var matched_idx;
+
+      var scanMeta = {
+        lowerMHz: 944,
+        upperMHz: 950,
+        leftPixels: 102,
+        rightPixels: 725,
+      }
+
+
+      $(document).ready(function () {
+        map = initialize_map();
+        $.getJSON("heatmap.json", function (data) {
+          json_data = data;
+
+          $("#frequency").slider({
+            value: 0,
+            min: 0,
+            max: json_data.bands.length - 1,
+            step: 1,
+            slide: function( event, ui ) {
+              update_frequency(ui.value);
+            }
+          });
+
+          $("#time").slider({
+            orientation: 'vertical',
+            value: 0,
+            min: 0,
+            max: json_data.points.length - 1,
+            step: 1,
+            animate: 'fast',
+            slide: function( event, ui ) {
+              update_position(ui.value);
+            }
+          });
+
+          update_frequency(0);
+          update_position(0);
+        });
+      });
+
+
+      function update_position(idx) {
+        show_marker(idx);
+        $('#spectrum').spState(idx);
+        $('#legend-time').text((new Date(1000*json_data.points[idx].ts)).toLocaleString());
+      }
+
+
+      function update_frequency(idx) {
+        show_heatmap(idx);
+        var freq = json_data.bands[idx];
+        var freq_span = scanMeta.upperMHz - scanMeta.lowerMHz;
+        var new_position = Math.round((scanMeta.rightPixels - scanMeta.leftPixels)*(freq - scanMeta.lowerMHz)/freq_span);
+        $('#spectrum-band').css('left', scanMeta.leftPixels + new_position);
+        $('#legend-frequency').text((freq + json_data.band_width/2).toFixed(2) + ' MHz');
+      }
+
+
+      function initialize_map() {
+        var mapOptions = {
+          center: { lat: 55.706344, lng: 37.507083},
+          zoom: 15,
+          scaleControl: true,
+          panControl: false,
+          zoomControlOptions: {
+            style: google.maps.ZoomControlStyle.LARGE,
+            position: google.maps.ControlPosition.RIGHT_CENTER
+          },
+          mapTypeId: google.maps.MapTypeId.HYBRID,
+        };
+        return new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+      }
+
+      function show_heatmap(band) {
+        var heatMapData = [];
+        $.each(json_data.points, function(idx, point) {
+          heatMapData.push({location: new google.maps.LatLng(point.lat, point.lon), weight: point.spectrum[band] });
+        });
+
+        if (heatmap) { heatmap.setMap(null)}
+        heatmap = new google.maps.visualization.HeatmapLayer({
+          data: heatMapData,
+          maxIntensity: 30,
+          radius: 35 
+        });
+        heatmap.setMap(map);
+      }
+
+
+      function show_marker(idx) {
+        if (marker) {marker.setMap(null);}
+
+        var lat = json_data.points[idx].lat;
+        var lon = json_data.points[idx].lon;
+
+        marker = new google.maps.Marker({
+          position: new google.maps.LatLng(lat, lon),
+          map: map,
+          title: lat + ', ' + lon
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <h3 style="margin-left: 90px;">Результаты сканирования GSM-downlink-a 944-950MHz</h3>
+    <div id="map-canvas" class="map"></div>
+    <div id="time"></div>
+    <div id="time-label">
+    </div>
+    <div id="spectrum">
+      <div id="spectrum-band"></div>
+    </div>
+    <div id="frequency"></div>
+    <table id="legend">
+      <tr>
+        <td><b>Частота:</b></td><td id="legend-frequency" width="300"></td>
+        <td><b>Время:</b></td><td id="legend-time"></td>
+      </tr>
+    </table>
+  </body>
+</html>
