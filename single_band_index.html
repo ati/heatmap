@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"> 
+    <style type="text/css">
+      html, body, { height: 100%; margin: 0; padding: 0;}
+      #map-canvas {
+        width: 800px;
+        height: 600px;
+        margin: 10px;
+        margin-left: 90px;
+        float: left;
+      }
+      #time {
+        float: left;
+        width: 15px;
+        height: 400px;
+        margin-left: 10px;
+      }
+      #time-label {
+        float: left;
+        width: 50px;
+        margin-left: 10px;
+      }
+      #legend {
+        width: 640px;
+        margin-left: 90px;
+      }
+    </style>
+    
+
+    <script type="text/javascript" src="js/jquery.min.js"></script>
+    <link rel="stylesheet" href="css/jquery-ui.min.css">
+    <script src="js/jquery-ui.min.js"></script>
+
+    <script type="text/javascript"
+      src="http://maps.googleapis.com/maps/api/js?libraries=visualization&key=AIzaSyARde3l38fdZyf5nwQWc-iPVgtHRb6NlwM"></script>
+    <script type="text/javascript">
+
+      var map;
+      var json_data = [];
+      var heatmap;
+      var marker;
+      var matched_idx;
+
+      $(document).ready(function () {
+        $.getJSON("single_band_heatmap.json", function (data) {
+          json_data = data;
+          map = initialize_map(data.center);
+
+          $("#time").slider({
+            orientation: 'vertical',
+            value: 0,
+            min: 0,
+            max: json_data.points.length - 1,
+            step: 1,
+            animate: 'fast',
+            slide: function( event, ui ) {
+              update_position(ui.value);
+            }
+          });
+
+          $("#scan_title").html("Scanning results for <code>'" + data.title + "'</code>");
+          show_heatmap();
+          update_position(0);
+        });
+      });
+
+
+      function update_position(idx) {
+        show_marker(idx);
+        $('#legend-time').text((new Date(1000*json_data.points[idx].ts)).toLocaleString());
+      }
+
+
+      function initialize_map(center) {
+        var mapOptions = {
+          center: {lat: center.lat, lng: center.lon},
+          zoom: 13,
+          scaleControl: true,
+          panControl: false,
+          zoomControlOptions: {
+            style: google.maps.ZoomControlStyle.LARGE,
+            position: google.maps.ControlPosition.RIGHT_CENTER
+          },
+          mapTypeId: google.maps.MapTypeId.HYBRID,
+        };
+        return new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+      }
+
+
+      function show_heatmap() {
+        var heatMapData = [];
+
+        $.each(json_data.points, function(idx, point) {
+          heatMapData.push({location: new google.maps.LatLng(point.lat, point.lon), weight: point.spectrum });
+        });
+
+        if (heatmap) { heatmap.setMap(null)}
+        heatmap = new google.maps.visualization.HeatmapLayer({
+          data: heatMapData,
+          maxIntensity: 500,
+          radius: 20 
+        });
+        heatmap.setMap(map);
+      }
+
+
+      function show_marker(idx) {
+        if (marker) {marker.setMap(null);}
+
+        var lat = json_data.points[idx].lat;
+        var lon = json_data.points[idx].lon;
+
+        marker = new google.maps.Marker({
+          position: new google.maps.LatLng(lat, lon),
+          map: map,
+          title: lat + ', ' + lon
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <h3 style="margin-left: 90px;" id="scan_title">Scanning results</h3>
+    <div id="map-canvas" class="map"></div>
+    <div id="time"></div>
+    <div id="time-label">
+    </div>
+    <div id="spectrum">
+      <div id="spectrum-band"></div>
+    </div>
+    <table id="legend">
+      <tr>
+        <td><b>Time:</b></td><td id="legend-time"></td>
+      </tr>
+    </table>
+  </body>
+</html>
