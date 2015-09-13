@@ -99,8 +99,7 @@ def distance(p1, p2)
   b = [p2[:lat], p2[:lon]]
 
   rad_per_deg = Math::PI/180  # PI / 180
-  rkm = 6371                  # Earth radius in kilometers
-  rm = rkm * 1000             # Radius in meters
+  rm = 6378137             # Radius in meters
 
   dlon_rad = (b[1]-a[1]) * rad_per_deg  # Delta, converted to rad
   dlat_rad = (b[0]-a[0]) * rad_per_deg

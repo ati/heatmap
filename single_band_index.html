@@ -5,26 +5,22 @@
     <style type="text/css">
       html, body, { height: 100%; margin: 0; padding: 0;}
       #map-canvas {
-        width: 800px;
-        height: 600px;
+        width: 95%;
+        height: 550px;
         margin: 10px;
-        margin-left: 90px;
         float: left;
       }
       #time {
-        float: left;
-        width: 15px;
-        height: 400px;
+        height: 15px;
+        width: 100%;
         margin-left: 10px;
       }
       #time-label {
-        float: left;
         width: 50px;
         margin-left: 10px;
       }
       #legend {
-        width: 640px;
-        margin-left: 90px;
+        width: 95%;
       }
     </style>
     
@@ -43,26 +39,55 @@
       var marker;
       var matched_idx;
 
+      function process_json_data(data) {
+        json_data = data[0]? data[0] : data;
+        map = initialize_map(data.center);
+
+        map.addListener('zoom_changed', function() {
+          show_heatmap(map.zoom);
+        });
+
+        $("#time").slider({
+          orientation: 'horizontal',
+          value: 0,
+          min: 0,
+          max: json_data.points.length - 1,
+          step: 1,
+          animate: 'fast',
+          slide: function( event, ui ) {
+            update_position(ui.value);
+          }
+        });
+
+        $("#scan_title").html("Scanning results for <code>'" + data.title + "'</code>");
+        show_heatmap(map.zoom);
+        update_position(0);
+      }
+
+
       $(document).ready(function () {
         $.getJSON("single_band_heatmap.json", function (data) {
-          json_data = data;
-          map = initialize_map(data.center);
+          process_json_data(data);
+        });
 
-          $("#time").slider({
-            orientation: 'vertical',
-            value: 0,
-            min: 0,
-            max: json_data.points.length - 1,
-            step: 1,
-            animate: 'fast',
-            slide: function( event, ui ) {
-              update_position(ui.value);
-            }
+        $(':button').click(function(){
+          var formData = new FormData($('form')[0]);
+          $.ajax({
+              url: '/single_band_heatmap.json',  //Server script to process data
+              type: 'GET',
+              xhr: function() {  // Custom XMLHttpRequest
+                  var myXhr = $.ajaxSettings.xhr();
+                  return myXhr;
+              },
+              success: process_json_data,
+              // error: errorHandler,
+              // Form data
+              data: formData,
+              //Options to tell jQuery not to process data or worry about content-type.
+              cache: false,
+              contentType: false,
+              processData: false
           });
-
-          $("#scan_title").html("Scanning results for <code>'" + data.title + "'</code>");
-          show_heatmap();
-          update_position(0);
         });
       });
 
@@ -89,18 +114,41 @@
       }
 
 
-      function show_heatmap() {
+      function zoom2intensity(zoom) {
+        default_scale = 1000;
+
+        var scale = {
+          11: 2000,
+          12: 1000,
+          13: 500,
+          14: 240,
+          15: 125,
+          16: 100
+        };
+
+        zooms = Object.keys(scale).sort();
+        if (scale[zoom]) { return scale[zoom]; }
+        if (zoom < zooms[0]) { return scale[zooms[0]]; }
+        if (zoom > zooms[zooms.length - 1]) { return scale[zooms.pop()]; }
+        return default_scale;
+      }
+
+
+      function show_heatmap(zoom_level) {
         var heatMapData = [];
+        console.log(zoom_level);
 
         $.each(json_data.points, function(idx, point) {
           heatMapData.push({location: new google.maps.LatLng(point.lat, point.lon), weight: point.spectrum });
         });
 
-        if (heatmap) { heatmap.setMap(null)}
+        if (heatmap) { heatmap.setMap(null) }
+        var maxintens = zoom2intensity(zoom_level);
+        console.log(maxintens);
         heatmap = new google.maps.visualization.HeatmapLayer({
           data: heatMapData,
-          maxIntensity: 500,
-          radius: 20 
+          maxIntensity: zoom2intensity(zoom_level),
+          radius: 20,
         });
         heatmap.setMap(map);
       }
@@ -123,16 +171,20 @@
   <body>
     <h3 style="margin-left: 90px;" id="scan_title">Scanning results</h3>
     <div id="map-canvas" class="map"></div>
-    <div id="time"></div>
-    <div id="time-label">
-    </div>
-    <div id="spectrum">
-      <div id="spectrum-band"></div>
-    </div>
     <table id="legend">
+      <tr>
+        <td colspan="2">
+          <div id="time"></div>
+          <div id="time-label"></div>
+        </td>
+      </tr>
       <tr>
         <td><b>Time:</b></td><td id="legend-time"></td>
       </tr>
     </table>
+    <form enctype="multipart/form-data">
+      <input name="file" type="file" />
+      <input type="button" value="Upload" />
+    </form>
   </body>
 </html>
