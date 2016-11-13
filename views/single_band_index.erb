@@ -29,8 +29,8 @@
     <link rel="stylesheet" href="css/jquery-ui.min.css">
     <script src="js/jquery-ui.min.js"></script>
 
-    <script type="text/javascript"
-      src="http://maps.googleapis.com/maps/api/js?libraries=visualization&key=AIzaSyARde3l38fdZyf5nwQWc-iPVgtHRb6NlwM"></script>
+    <!-- script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?libraries=visualization&key=AIzaSyARde3l38fdZyf5nwQWc-iPVgtHRb6NlwM"></script -->
+    <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?libraries=visualization"></script>
     <script type="text/javascript">
 
       var map;
@@ -66,7 +66,13 @@
 
 
       $(document).ready(function () {
-        $.getJSON("single_band_heatmap.json", function (data) {
+        var queryDict = {};
+        location.search.substr(1).split("&").forEach(function(item) {
+          queryDict[item.split("=")[0]] = item.split("=")[1];
+        });
+        var initial_filename = queryDict['f']? queryDict['f'] : '/heatmap/show/single_band_heatmap.rfs';
+          
+        $.getJSON(initial_filename, function (data) {
           process_json_data(data);
         });
 
@@ -181,6 +187,14 @@
         <td><b>Time:</b></td><td id="legend-time"></td>
       </tr>
     </table>
+
+    <h3>Uploaded files</h3>
+    <ol>
+      <% @rfs_list.each do |file_name| %>
+        <li><a href="/heatmap/single_band_index.html?f=<%= URI.escape(file_name) %>"><%= file_name %></a></li>
+      <% end %>
+    </ol>
+
     <form enctype="multipart/form-data">
       <input name="file" type="file" />
       <input type="button" value="Upload" />
