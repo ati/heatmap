@@ -3,7 +3,6 @@
 #
 require 'json'
 
-MIN_POWER = 47
 MIN_DISTANCE=10 #meters, don't store points, closer than this distance to each other
 
 class Scan2Web
@@ -43,19 +42,24 @@ class Scan2Web
   # convert absolute power values to relative 'weight' of each point
   #
   def normalize(data)
-    return [] if data.empty? 
-    min_power = max_power = data[0][:spectrum]
-    min_lat = max_lat = data[0][:lat]
-    min_lon = max_lon = data[0][:lon]
+    return [] if data.empty?
+    if data.length.eql?(1)
+      data[0][:spectrum] = 100;
+      return data
+    else
+      min_power = max_power = data[0][:spectrum]
+      min_lat = max_lat = data[0][:lat]
+      min_lon = max_lon = data[0][:lon]
 
 
-    data.each do |dp|
-      #STDERR.puts dp[:spectrum]
-      min_power = [min_power, dp[:spectrum]].min
-      max_power = [max_power, dp[:spectrum]].max
+      data.each do |dp|
+        #STDERR.puts dp[:spectrum]
+        min_power = [min_power, dp[:spectrum]].min
+        max_power = [max_power, dp[:spectrum]].max
+      end
+
+      return data.map{|dp| dp[:spectrum] = (100*(dp[:spectrum] - min_power)/(min_power.abs - max_power.abs)).round(1); dp}
     end
-
-    data.map{|dp| dp[:spectrum] = (100*(dp[:spectrum] - min_power)/(min_power.abs - max_power.abs)).round(1); dp}
   end
 
 
@@ -109,10 +113,13 @@ class Scan2Web
   def handle_upload(file_name)
     data = load_data(file_name)
     res = {
-      title: file_name,
+      title: File.basename(file_name),
       center: get_geo_center(data),
       points: normalize(data)
     }
+    if data.length < 5
+      res[:message] = 'Too few data points'
+    end
     return res.to_json
   end
 end

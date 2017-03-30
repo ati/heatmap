@@ -2,15 +2,13 @@ require 'sinatra/base'
 require 'json'
 require 'fileutils'
 require 'sinatra/reloader'
-
-
-require  APP_DIR + 'scan2web.rb'
-
+require 'ruby_kml'
 
 class MyApp < Sinatra::Base
   configure do
     APP_DIR = File.dirname(__FILE__)
     UPLOADS_DIR = File.join(APP_DIR, 'uploads')
+    require File.join(APP_DIR, 'scan2web.rb')
   end
 
   configure :development do
@@ -28,9 +26,24 @@ class MyApp < Sinatra::Base
   end
 
 
-  get "/heatmap/single_band_index.html" do
-    @rfs_list = Dir.entries(UPLOADS_DIR).grep(/\.rfs$/).sort
-    erb :single_band_index
+  get "/heatmap/kml" do
+    content_type 'application/vnd.google-earth.kml+xml'
+    kml = KMLFile.new()
+    folder = KML::Folder.new(name: 'radio frequency + spatial scan')
+    Dir.entries(UPLOADS_DIR).grep(/\.rfs$/).each do |fn|
+      begin
+        rfs = JSON.parse(File.read(File.join(UPLOADS_DIR, fn)))[1]
+        folder.features << KML::Placemark.new(
+          name: "#{rfs['Start']} - #{rfs['Stop']} @ #{rfs['Time']}",
+          description: "http://www.tautology2.net/heatmap/single_band_index.html?f=" + URI.escape(fn),
+          #"Device: #{rfs['Device']}, gain: #{rfs['Gain']}", 
+          geometry: KML::Point.new(coordinates: {lat: rfs['Latitude'], lng: rfs['Longitude']}),
+        )
+      rescue Exception => e 
+      end
+    end
+    kml.objects << folder
+    kml.render
   end
 
 
@@ -71,7 +84,7 @@ class MyApp < Sinatra::Base
       scan.handle_upload(name)
 
     rescue Exception => e
-      return jerr("Invalid data file.")
+      return jerr("Invalid data file." + e)
     end
   end
 end
