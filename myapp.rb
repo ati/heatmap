@@ -73,7 +73,7 @@ class MyApp < Sinatra::Base
 
     begin
       rfs = JSON.parse(File.read(tmpfile)) # throw exception here if it's not a valid json
-      if !defined?(rfs[1]) || !defined(rfs[1]["Location"])
+      if !defined?(rfs[1]) || !defined?(rfs[1]["Location"])
         return jerr("Missing 'Location' section in JSON file")
       end
 
@@ -84,7 +84,7 @@ class MyApp < Sinatra::Base
       scan.handle_upload(name)
 
     rescue Exception => e
-      return jerr("Invalid data file." + e)
+      return jerr("#{e.backtrace.first}: #{e.message} (#{e.class})")
     end
   end
 end
